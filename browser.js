@@ -1,7 +1,7 @@
 // возвращает экзепляр запущенного браузера
 const puppeteer = require ('puppeteer')
 
-async function startBrowser(){
+async function browserInstance(){
     let browser
     try{
         browser = await puppeteer.launch({
@@ -15,5 +15,5 @@ async function startBrowser(){
     return browser
 }
 module.exports = {
-    startBrowser
+    browserInstance
 }
