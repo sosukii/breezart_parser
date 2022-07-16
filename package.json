@@ -1,0 +1,28 @@
+{
+  "name": "breezart_parser",
+  "version": "1.0.0",
+  "description": "parser for breezart.ru",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sosukii/breezart_parser.git"
+  },
+  "keywords": [
+    "parser",
+    "breezart",
+    "js",
+    "puppeteer"
+  ],
+  "author": "Trukhina Svetlana",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sosukii/breezart_parser/issues"
+  },
+  "homepage": "https://github.com/sosukii/breezart_parser#readme",
+  "dependencies": {
+    "puppeteer": "^15.4.0"
+  }
+}
