@@ -71,22 +71,22 @@ const breezartObject = {
 
                 async function getDescriptionData(page, element, text){
                     const data = await page.evaluate(async (page, element, text) => {
-                        const headers = await document.querySelectorAll(element)
+                        const headers = document.querySelectorAll(element)
 
                         if(!headers || !headers.length) return
 
                         let parent 
                         headers.forEach(header => {
-                            if(header.textContent === 'Описание'){
+                            if(header.textContent === text){
                                 parent = header.parentNode
                             }
                         })
 
-                        let result = parent.textContent 
+                        let result = text ==='Функции автоматики' 
+                            ? parent.querySelector('ul').innerHTML
+                            : parent.textContent
                         
-                        return text ==='Описание' ? `<ul>${result}</ul>` : result || ''
-// если нет 3 части - отдает undefined, а нужно либо выходить из функции, либо отдавать пустую строку
-
+                        return text ==='Функции автоматики' ? `<ul>${result}</ul>` : result || ''
                     }, page, element, text)
                     return data
                 }
@@ -94,13 +94,11 @@ const breezartObject = {
                     const elements = ['h2', 'h3']
                     const text = ['Описание', 'Функции автоматики']
 
-                    const part1 = await getDescriptionData(page, elements[0],text[0])
-                    const part2 = await getDescriptionData(page, elements[0], text[1])
-                    const alternativeDescription = await getDescriptionData(page, elements[1], text[0])
+                    const part1 = await getDescriptionData(page, elements[0],text[0]) || ''
+                    const part2 = await getDescriptionData(page, elements[0], text[1]) || ''
+                    const alternativeDescription = await getDescriptionData(page, elements[1], text[0]) || ''
 
-                     return `часть 1: ${part1} \n часть 2: ${part2} \n часть 3: ${alternativeDescription}`
-
-                    //return `часть 1: ${part1} \n часть 2: ${part2} \n`
+                    return `${part1} \n  ${part2} \n ${alternativeDescription}`
                 }
 
                 const  description = await returnDescription(pageItem)
