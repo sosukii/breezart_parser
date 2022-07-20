@@ -67,28 +67,47 @@ const breezartObject = {
                 //     })
                 //     return propsArray.join('')
                 // })
+                
 
+                async function getDescriptionData(page, element, text){
+                    const data = await page.evaluate(async (page, element, text) => {
+                        const headers = await document.querySelectorAll(element)
 
-                function returnDescription() {
-                    const element = ['h2', 'h3', 'ul']
-                    const text = ['Описание', 'Функции автоматики']
-                    
-                }
+                        if(!headers || !headers.length) return
 
-                function getDescriptionData(page, element, text){
-                    await page.$$eval(element, headers => {
                         let parent 
-                        headers.map(header => {
-                            if(header.textContent === text){
+                        headers.forEach(header => {
+                            if(header.textContent === 'Описание'){
                                 parent = header.parentNode
                             }
                         })
-                        const result = text ==='Описание' ? parent.textContent : parent.querySelector('ul').innerHTML
+
+                        let result = parent.textContent 
+                        
                         return text ==='Описание' ? `<ul>${result}</ul>` : result || ''
-                    })
+// если нет 3 части - отдает undefined, а нужно либо выходить из функции, либо отдавать пустую строку
+
+                    }, page, element, text)
+                    return data
                 }
-                
+                async function returnDescription(page) {
+                    const elements = ['h2', 'h3']
+                    const text = ['Описание', 'Функции автоматики']
+
+                    const part1 = await getDescriptionData(page, elements[0],text[0])
+                    const part2 = await getDescriptionData(page, elements[0], text[1])
+                    const alternativeDescription = await getDescriptionData(page, elements[1], text[0])
+
+                     return `часть 1: ${part1} \n часть 2: ${part2} \n часть 3: ${alternativeDescription}`
+
+                    //return `часть 1: ${part1} \n часть 2: ${part2} \n`
+                }
+
+                const  description = await returnDescription(pageItem)
+                console.log('дескрипшен получился такой: ', description);
+
                 const description_part1 = await pageItem.$$eval('h2', headers => {
+                    if(!headers || !headers.length) return
                     let parent 
                     headers.map(header => {
                         if(header.textContent === 'Описание'){
@@ -99,6 +118,7 @@ const breezartObject = {
                     return result || ''
                 })
                 const description_part2 = await pageItem.$$eval('h2', headers => {
+                    if(!headers || !headers.length) return
                     let parent
                     headers.map(header => {
                         if(header.textContent === 'Функции автоматики'){
@@ -109,22 +129,30 @@ const breezartObject = {
                     return `<ul>${result}</ul>` || ''
                 })
 
-                const alternativeDescription = await pageItem.$$eval('h3', headers => {
+                let alternativeDescription = ''
+                
+                await pageItem.$$eval('h3', headers => {
+                    if(!headers || !headers.length) return
                     let parent 
                     headers.map(header => {
                         if(header.textContent === 'Описание'){
                             parent = header.parentNode
                         }
                     })
-                    const result = parent.textContent
-                    return result || ''
+                    const result = parent.textContent || ''
+                    alternativeDescription = result || ''
                 })
-
-                console.log( description_part2);
-                // const description = await pageItem.$eval('span.description', e)
-
                 
-                // console.log('название товара: ', name, price);
+                
+               
+                    
+                
+                
+
+                // console.log('description part 1: ', description_part1);
+                // console.log('description part 2: ', description_part2);
+                // console.log('alternativeDescription: ', alternativeDescription);
+
                 await pageItem.close()
             }
         }
