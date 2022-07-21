@@ -50,6 +50,14 @@ const breezartObject = {
 
             return `${part1} \n  ${part2} \n ${alternativeDescription}`
         }
+        const arrayOfCategories = [
+            '[Кондиционеры >> Вентиляция >> Вентиляционные установки >> Приточные установки >> Breezart]',
+            '[Кондиционеры >> Вентиляция >> Вентиляционные установки >> Приточно-вытяжные установки >> Breezart]',
+            '[Кондиционеры >> Вентиляция >> Вентиляционные установки >> Установки для бассейна >> Breezart]',
+            '[Кондиционеры >> Вентиляция >> Вентиляционное оборудование >> Увлажнители >> Breezart]',
+            '[Кондиционеры >> Запчасти и аксессуары >> Фильтры]'
+        ]
+        const today = new Date()
         console.log('scrape working!');
 
         const browser = await puppeteer.launch(); //{headless: false} для отображения окна
@@ -66,6 +74,7 @@ const breezartObject = {
             const linksOnItems = await returnLinksToItemsPerPage(mainPage)
 
             for(let j = 0; j < linksOnItems.length; j++){
+                console.log('категория номер ', i, ' называется категория ', linksOnCategory[i])
                 const pageItem =await browser.newPage()
                 await pageItem.goto(linksOnItems[j])
 
@@ -99,6 +108,9 @@ const breezartObject = {
                     return propsArray.join('')
                 })
                 const description = await returnDescription(pageItem)
+                const category = arrayOfCategories[i]
+                const sku = `${today.getDate()}${today.getMonth()}${today.getFullYear().toString().slice(2)}${today.getMilliseconds()}`
+
 
 
 
