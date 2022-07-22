@@ -15,19 +15,19 @@ const breezartObject = {
             )
             return links
         }
-        async function getItemData(page, categoryIndex){
-            const photos = await page.$$eval('div.frame.prod.content img', imgs=> {
+        async function returnItemData(itemPage, categoryIndex, itemPageIndex, arrayDescription){
+            const photos = await itemPage.$$eval('div.frame.prod.content img', imgs=> {
                 const links = imgs.map(img => img.getAttribute('src'))
-                return links.map(link => link.includes('http') ? link : `http://www.breezart.ru${link}`)
+                return (links.map(link => link.includes('http') ? `${link}; ` : `http://www.breezart.ru${link}; `)).join('')
             })
-            const name = await page.$eval('h1', e=>e.textContent)
-            const price = await page.$eval('span.price', e=>(e.textContent).slice(0,e.textContent.length - 2))
+            const name = await itemPage.$eval('h1', e=>e.textContent)
+            const price = await itemPage.$eval('span.price', e=>(e.textContent).slice(0,e.textContent.length - 2))
             const enabled = '+'
             const amount = price ? 1 : 0
             const currency = 'RUB'
             const producer = 'Breezart'
 
-            const properties = await page.evaluate(async () => {
+            const properties = await itemPage.evaluate(async () => {
                 const propsArray = []
 
                 const table = document.querySelector('table.prod-param tbody')
@@ -45,11 +45,13 @@ const breezartObject = {
                 })
                 return propsArray.join('')
             })
-            const description = await returnDescription(page)
+            const description = await returnDescription(itemPage)
             const category = arrayOfCategories[categoryIndex]
             const sku = `${today.getDate()}${today.getMonth()}${today.getFullYear().toString().slice(2)}${today.getMilliseconds()}`
             
-            return {photos, name, price, enabled, amount, currency, producer, properties, description, category, sku}
+            const briefdescription = arrayDescription[itemPageIndex]   
+
+            return {photos, name, price, enabled, amount, currency, producer, properties, description, category, sku, briefdescription}
         }
         async function getDescriptionData(page, element, text){
             const data = await page.evaluate(async (page, element, text) => {
@@ -66,7 +68,7 @@ const breezartObject = {
 
                 let result = text ==='Функции автоматики' 
                     ? parent.querySelector('ul').innerHTML
-                    : parent.textContent
+                    : parent.textContent.replace(/\t/g, '')
                 
                 return text ==='Функции автоматики' ? `<ul>${result}</ul>` : result || ''
             }, page, element, text)
@@ -128,18 +130,16 @@ const breezartObject = {
         for(let i = 0; i < linksOnCategory.length; i++){
             await mainPage.goto(linksOnCategory[i])
 
-            const arrayDescription = await returnArrayOfShortDescription(mainPage)
+            const arrayDescription_currentPage = await returnArrayOfShortDescription(mainPage)
             const linksOnItems = await returnLinksToItemsPerPage(mainPage)
 
             for(let j = 0; j < linksOnItems.length; j++){
                 const pageItem =await browser.newPage()
                 await pageItem.goto(linksOnItems[j])
-
-                const name = await pageItem.$eval('h1', e=>e.textContent)
-                const briefdescription = arrayDescription[j]         
-
-                console.log(name);
-                console.log(briefdescription);
+     
+                const itemData = await returnItemData(pageItem, i, j, arrayDescription_currentPage)
+                console.log('Один товар:');
+                console.log(itemData);
 
                 await pageItem.close()
             }
