@@ -107,6 +107,19 @@ const breezartObject = {
                 })
                 return arrayOfBriefDescriptionForItemsPerPage
         }
+        async function returnPaginationLinks(page){
+            const linkToCurrentPage = await page.evaluate(() => document.location.href);
+
+            const paginationLinks = await page.$$eval('div.scale > a', async elements_a => {
+                const linksArray = []
+                for(let element_a of elements_a){
+                    linksArray.push( element_a.getAttribute('href') )
+                }
+                return linksArray
+            })
+            
+            return paginationLinks.map(link => `${linkToCurrentPage}${link}`)
+        }
         function isTargetSibling(headerElement){
             return headerElement.nextElementSibling.classList.contains('prod-right')
         }
@@ -127,22 +140,35 @@ const breezartObject = {
         mainPage.waitForNavigation()
         const linksOnCategory = await returnCategoryLinksArray(mainPage)
         
+
+        // открываем каждую категорию:
         for(let i = 0; i < linksOnCategory.length; i++){
             await mainPage.goto(linksOnCategory[i])
+
+            
+
+
+            const paginationLinks = await returnPaginationLinks(mainPage)
+            console.log('ссылки пагинации(чз функцию): ');
+            console.log(paginationLinks);
 
             const arrayDescription_currentPage = await returnArrayOfShortDescription(mainPage)
             const linksOnItems = await returnLinksToItemsPerPage(mainPage)
 
-            for(let j = 0; j < linksOnItems.length; j++){
-                const pageItem =await browser.newPage()
-                await pageItem.goto(linksOnItems[j])
-     
-                const itemData = await returnItemData(pageItem, i, j, arrayDescription_currentPage)
-                console.log('Один товар:');
-                console.log(itemData);
 
-                await pageItem.close()
-            }
+
+
+            // перебираем все товары на одной странице:
+            // for(let j = 0; j < linksOnItems.length; j++){
+            //     const pageItem =await browser.newPage()
+            //     await pageItem.goto(linksOnItems[j])
+     
+            //     const itemData = await returnItemData(pageItem, i, j, arrayDescription_currentPage)
+            //     console.log('Один товар:');
+            //     console.log(itemData);
+
+            //     await pageItem.close()
+            // }
         }
 
 
