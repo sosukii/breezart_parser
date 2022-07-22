@@ -15,9 +15,41 @@ const breezartObject = {
             )
             return links
         }
-        async function getItemData(page){
-            const name = await page.$eval('h1', e => e.textContent)
-            console.log(name);
+        async function getItemData(page, categoryIndex){
+            const photos = await page.$$eval('div.frame.prod.content img', imgs=> {
+                const links = imgs.map(img => img.getAttribute('src'))
+                return links.map(link => link.includes('http') ? link : `http://www.breezart.ru${link}`)
+            })
+            const name = await page.$eval('h1', e=>e.textContent)
+            const price = await page.$eval('span.price', e=>(e.textContent).slice(0,e.textContent.length - 2))
+            const enabled = '+'
+            const amount = price ? 1 : 0
+            const currency = 'RUB'
+            const producer = 'Breezart'
+
+            const properties = await page.evaluate(async () => {
+                const propsArray = []
+
+                const table = document.querySelector('table.prod-param tbody')
+                const rows = table.querySelectorAll('tr')
+                rows.forEach(row => {
+                    const  titleWithPrice = row.querySelector('th').textContent.includes('цена')
+                    
+                    if(!titleWithPrice){
+                        const title = row.querySelector('th').textContent
+                        const value = row.querySelector('td').textContent
+
+                        const oneProp = `${title} ${value}; `
+                        propsArray.push(oneProp)
+                    }
+                })
+                return propsArray.join('')
+            })
+            const description = await returnDescription(page)
+            const category = arrayOfCategories[categoryIndex]
+            const sku = `${today.getDate()}${today.getMonth()}${today.getFullYear().toString().slice(2)}${today.getMilliseconds()}`
+            
+            return {photos, name, price, enabled, amount, currency, producer, properties, description, category, sku}
         }
         async function getDescriptionData(page, element, text){
             const data = await page.evaluate(async (page, element, text) => {
@@ -50,6 +82,32 @@ const breezartObject = {
 
             return `${part1} \n  ${part2} \n ${alternativeDescription}`
         }
+        async function returnArrayOfShortDescription(page){
+                const arrayOfBriefDescriptionForItemsPerPage = await page.$$eval('div.frame.prod.content > div.prod-right', allProdRight => {
+                    let result = []
+    
+                    allProdRight.forEach(oneProdRight => {
+                        const children = oneProdRight.children
+                        let childWithoutPrice = []
+    
+                        for(let child of children) {
+                            if(!child.classList.contains('price-big')){
+                                child.classList.contains('type')
+                                    ? childWithoutPrice.push(`Тип: ${child.innerHTML.replace(/\t|\n/g, '')}; `)
+                                    : childWithoutPrice.push(child.innerHTML.replace(/\t|\n/g, ''))
+                            }
+                        }
+                       
+                       result.push(childWithoutPrice.join('<br>'))
+                    })
+                    
+                    return result
+                })
+                return arrayOfBriefDescriptionForItemsPerPage
+        }
+        function isTargetSibling(headerElement){
+            return headerElement.nextElementSibling.classList.contains('prod-right')
+        }
         const arrayOfCategories = [
             '[Кондиционеры >> Вентиляция >> Вентиляционные установки >> Приточные установки >> Breezart]',
             '[Кондиционеры >> Вентиляция >> Вентиляционные установки >> Приточно-вытяжные установки >> Breezart]',
@@ -60,59 +118,28 @@ const breezartObject = {
         const today = new Date()
         console.log('scrape working!');
 
-        const browser = await puppeteer.launch(); //{headless: false} для отображения окна
+        const browser = await puppeteer.launch({headless: false}); //{headless: false} для отображения окна
         const mainPage = await browser.newPage();
         await mainPage.goto(this.link);
 
         mainPage.waitForNavigation()
-
-        
         const linksOnCategory = await returnCategoryLinksArray(mainPage)
         
         for(let i = 0; i < linksOnCategory.length; i++){
             await mainPage.goto(linksOnCategory[i])
+
+            const arrayDescription = await returnArrayOfShortDescription(mainPage)
             const linksOnItems = await returnLinksToItemsPerPage(mainPage)
 
             for(let j = 0; j < linksOnItems.length; j++){
-                console.log('категория номер ', i, ' называется категория ', linksOnCategory[i])
                 const pageItem =await browser.newPage()
                 await pageItem.goto(linksOnItems[j])
 
-                const photos = await pageItem.$$eval('div.frame.prod.content img', imgs=> {
-                    const links = imgs.map(img => img.getAttribute('src'))
-                    return links.map(link => link.includes('http') ? link : `http://www.breezart.ru${link}`)
-                })
                 const name = await pageItem.$eval('h1', e=>e.textContent)
-                const price = await pageItem.$eval('span.price', e=>(e.textContent).slice(0,e.textContent.length - 2))
-                const enabled = '+'
-                const amount = price ? 1 : 0
-                const currency = 'RUB'
-                const producer = 'Breezart'
+                const briefdescription = arrayDescription[j]         
 
-                const properties = await pageItem.evaluate(async () => {
-                    const propsArray = []
-
-                    const table = document.querySelector('table.prod-param tbody')
-                    const rows = table.querySelectorAll('tr')
-                    rows.forEach(row => {
-                        const  titleWithPrice = row.querySelector('th').textContent.includes('цена')
-                        
-                        if(!titleWithPrice){
-                            const title = row.querySelector('th').textContent
-                            const value = row.querySelector('td').textContent
-
-                            const oneProp = `${title} ${value}; `
-                            propsArray.push(oneProp)
-                        }
-                    })
-                    return propsArray.join('')
-                })
-                const description = await returnDescription(pageItem)
-                const category = arrayOfCategories[i]
-                const sku = `${today.getDate()}${today.getMonth()}${today.getFullYear().toString().slice(2)}${today.getMilliseconds()}`
-
-
-
+                console.log(name);
+                console.log(briefdescription);
 
                 await pageItem.close()
             }
