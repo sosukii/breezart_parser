@@ -15,13 +15,86 @@ const breezartObject = {
             )
             return links
         }
-        async function returnItemData(itemPage, categoryIndex, itemPageIndex, arrayDescription){
+        async function getDescriptionData(page, element, text){
+            const data = await page.evaluate(async (page, element, text) => {
+                const headers = document.querySelectorAll(element)
+
+                if(!headers || !headers.length) return
+
+                let parent 
+                headers.forEach(header => {
+                    if(header.textContent === text){
+                        parent = header.parentNode
+                    }
+                })
+                
+                
+                 let result = text ==='Функции автоматики' 
+                    ? parent.querySelector('ul') ? parent.querySelector('ul').innerHTML : ''
+                    : parent.textContent.replace(/\t/g, '')
+                
+                return text ==='Функции автоматики' && result.length > 0 ? `<ul>${result}</ul>` : result || ''
+            }, page, element, text)
+            return data
+        }
+        async function returnDescription(page) {
+            const elements = ['h2', 'h3']
+            const text = ['Описание', 'Функции автоматики']
+
+            const part1 = await getDescriptionData(page, elements[0],text[0]) || ''
+            const part2 = await getDescriptionData(page, elements[0], text[1]) || ''
+            const alternativeDescription = await getDescriptionData(page, elements[1], text[0]) || ''
+
+            return `${part1} \n  ${part2} \n ${alternativeDescription}`
+        }
+        async function returnArrayOfShortDescription(page){
+            const arrayOfBriefDescriptionForItemsPerPage = await page.$$eval('div.frame.prod.content > div.prod-right', allProdRight => {
+                let result = []
+
+                allProdRight.forEach(oneProdRight => {
+                    const children = oneProdRight.children
+                    let childWithoutPrice = []
+
+                    for(let child of children) {
+                        if(!child.classList.contains('price-big')){
+                            child.classList.contains('type')
+                                ? childWithoutPrice.push(`Тип: ${child.innerHTML.replace(/\t|\n/g, '')}; `)
+                                : childWithoutPrice.push(child.innerHTML.replace(/\t|\n/g, ''))
+                        }
+                    }
+                    
+                    result.push(childWithoutPrice.join('<br>'))
+                })
+                
+                return result
+            })
+            return arrayOfBriefDescriptionForItemsPerPage
+        }
+        async function returnPricesPerPage(page){
+            const arrayPrice_currentPage = await page.$$eval('div.frame.prod.content > div.prod-right > span.price-big', allPrices => {
+                let result = []
+
+                allPrices.forEach(onePrice => {
+                    const price = onePrice.textContent.includes('запросу') 
+                        ? ''
+                        : onePrice.textContent.includes(' — ')
+                            ? onePrice.textContent.split(' — ')[0] 
+                            : onePrice.textContent.replace('₽', '')
+                    result.push(price)
+                })
+
+                return result
+            })
+            return arrayPrice_currentPage
+        }
+        async function returnItemData(itemPage, categoryIndex, itemPageIndex, arrayDescription, arrayPrices){
             const photos = await itemPage.$$eval('div.frame.prod.content img', imgs=> {
                 const links = imgs.map(img => img.getAttribute('src'))
                 return (links.map(link => link.includes('http') ? `${link}; ` : `http://www.breezart.ru${link}; `)).join('')
             })
             const name = await itemPage.$eval('h1', e=>e.textContent)
-            const price = await itemPage.$eval('span.price', e=>(e.textContent).slice(0,e.textContent.length - 2))
+
+            let price = arrayPrices[itemPageIndex]
             const enabled = '+'
             const amount = price ? 1 : 0
             const currency = 'RUB'
@@ -53,59 +126,24 @@ const breezartObject = {
 
             return {photos, name, price, enabled, amount, currency, producer, properties, description, category, sku, briefdescription}
         }
-        async function getDescriptionData(page, element, text){
-            const data = await page.evaluate(async (page, element, text) => {
-                const headers = document.querySelectorAll(element)
+        async function returnItemsDataPerOnePage(isFirstPage, currentPage, linkOnNextPage, categoryIndex){
+            const itemsPerPage = []
 
-                if(!headers || !headers.length) return
+            if(!isFirstPage) await currentPage.goto(linkOnNextPage) // first page? stay on her and scrap data here
 
-                let parent 
-                headers.forEach(header => {
-                    if(header.textContent === text){
-                        parent = header.parentNode
-                    }
-                })
+            const arrayPrice_currentPage = await returnPricesPerPage(currentPage) // написать функцию, которая возвращает цены ! готово, девочка моя
+            const arrayDescription_currentPage = await returnArrayOfShortDescription(currentPage)
+            const linksOnItems = await returnLinksToItemsPerPage(currentPage)
 
-                let result = text ==='Функции автоматики' 
-                    ? parent.querySelector('ul').innerHTML
-                    : parent.textContent.replace(/\t/g, '')
-                
-                return text ==='Функции автоматики' ? `<ul>${result}</ul>` : result || ''
-            }, page, element, text)
-            return data
-        }
-        async function returnDescription(page) {
-            const elements = ['h2', 'h3']
-            const text = ['Описание', 'Функции автоматики']
+            for(let j = 0; j < linksOnItems.length; j++){
+                const pageItem = await browser.newPage()
+                await pageItem.goto(linksOnItems[j])
 
-            const part1 = await getDescriptionData(page, elements[0],text[0]) || ''
-            const part2 = await getDescriptionData(page, elements[0], text[1]) || ''
-            const alternativeDescription = await getDescriptionData(page, elements[1], text[0]) || ''
-
-            return `${part1} \n  ${part2} \n ${alternativeDescription}`
-        }
-        async function returnArrayOfShortDescription(page){
-                const arrayOfBriefDescriptionForItemsPerPage = await page.$$eval('div.frame.prod.content > div.prod-right', allProdRight => {
-                    let result = []
-    
-                    allProdRight.forEach(oneProdRight => {
-                        const children = oneProdRight.children
-                        let childWithoutPrice = []
-    
-                        for(let child of children) {
-                            if(!child.classList.contains('price-big')){
-                                child.classList.contains('type')
-                                    ? childWithoutPrice.push(`Тип: ${child.innerHTML.replace(/\t|\n/g, '')}; `)
-                                    : childWithoutPrice.push(child.innerHTML.replace(/\t|\n/g, ''))
-                            }
-                        }
-                       
-                       result.push(childWithoutPrice.join('<br>'))
-                    })
-                    
-                    return result
-                })
-                return arrayOfBriefDescriptionForItemsPerPage
+                const itemData = await returnItemData(pageItem, categoryIndex, j, arrayDescription_currentPage, arrayPrice_currentPage)
+                itemsPerPage.push(itemData)
+                await pageItem.close()
+            }
+            return itemsPerPage
         }
         async function returnPaginationLinks(page){
             const linkToCurrentPage = await page.evaluate(() => document.location.href);
@@ -120,17 +158,16 @@ const breezartObject = {
             
             return paginationLinks.map(link => `${linkToCurrentPage}${link}`)
         }
-        function isTargetSibling(headerElement){
-            return headerElement.nextElementSibling.classList.contains('prod-right')
-        }
         const arrayOfCategories = [
             '[Кондиционеры >> Вентиляция >> Вентиляционные установки >> Приточные установки >> Breezart]',
             '[Кондиционеры >> Вентиляция >> Вентиляционные установки >> Приточно-вытяжные установки >> Breezart]',
+            '[Кондиционеры >> Вентиляция >> Вентиляционные установки >> Вытяжные установки >> Breezart]',
             '[Кондиционеры >> Вентиляция >> Вентиляционные установки >> Установки для бассейна >> Breezart]',
             '[Кондиционеры >> Вентиляция >> Вентиляционное оборудование >> Увлажнители >> Breezart]',
             '[Кондиционеры >> Запчасти и аксессуары >> Фильтры]'
         ]
         const today = new Date()
+        const itemsData = []
         console.log('scrape working!');
 
         const browser = await puppeteer.launch({headless: false}); //{headless: false} для отображения окна
@@ -139,44 +176,35 @@ const breezartObject = {
 
         mainPage.waitForNavigation()
         const linksOnCategory = await returnCategoryLinksArray(mainPage)
-        
+
 
         // открываем каждую категорию:
         for(let i = 0; i < linksOnCategory.length; i++){
             await mainPage.goto(linksOnCategory[i])
-
-            
-
-
+            const itemsFromCurrentCategory = []
             const paginationLinks = await returnPaginationLinks(mainPage)
-            console.log('ссылки пагинации(чз функцию): ');
-            console.log(paginationLinks);
 
-            const arrayDescription_currentPage = await returnArrayOfShortDescription(mainPage)
-            const linksOnItems = await returnLinksToItemsPerPage(mainPage)
-
-
-
-
-            // перебираем все товары на одной странице:
-            // for(let j = 0; j < linksOnItems.length; j++){
-            //     const pageItem =await browser.newPage()
-            //     await pageItem.goto(linksOnItems[j])
-     
-            //     const itemData = await returnItemData(pageItem, i, j, arrayDescription_currentPage)
-            //     console.log('Один товар:');
-            //     console.log(itemData);
-
-            //     await pageItem.close()
-            // }
+            // собрали итемы с первой страницы
+            const itemsFromFirstPage = await returnItemsDataPerOnePage(true, mainPage, linksOnCategory[i], i ) // this is Array of objects
+            itemsFromCurrentCategory.push(...itemsFromFirstPage)
+            
+            //листаем следующие страницы и собираем итемы с них
+            for(let p = 0; p < paginationLinks.length; p++){
+                const itemsPerPage = await returnItemsDataPerOnePage(false, mainPage, paginationLinks[p], i)
+                itemsFromCurrentCategory.push(...itemsPerPage)
+            } 
+            itemsData.push(...itemsFromCurrentCategory)
         }
-
-
+        return itemsData
     }
 }
 
-breezartObject.scrape()
 
+async function returnData(){
+    const data = await breezartObject.scrape()
+    console.log(data);
+}
+returnData()
 
 module.exports = {
     breezartObject
