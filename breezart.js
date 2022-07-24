@@ -1,4 +1,6 @@
 const puppeteer = require('puppeteer')
+const fs = require('fs');
+const {stringify} = require ('csv-stringify')
 
 const breezartObject = {
     link: 'http://www.breezart.ru/',
@@ -31,7 +33,7 @@ const breezartObject = {
                 
                  let result = text ==='Функции автоматики' 
                     ? parent.querySelector('ul') ? parent.querySelector('ul').innerHTML : ''
-                    : parent.textContent.replace(/\t/g, '')
+                    : parent.textContent.replace(/\t/g, '').replace('Описание','')
                 
                 return text ==='Функции автоматики' && result.length > 0 ? `<ul>${result}</ul>` : result || ''
             }, page, element, text)
@@ -120,6 +122,8 @@ const breezartObject = {
             })
             const description = await returnDescription(itemPage)
             const category = arrayOfCategories[categoryIndex]
+
+            const today = new Date()
             const sku = `${today.getDate()}${today.getMonth()}${today.getFullYear().toString().slice(2)}${today.getMilliseconds()}`
             
             const briefdescription = arrayDescription[itemPageIndex]   
@@ -166,7 +170,6 @@ const breezartObject = {
             '[Кондиционеры >> Вентиляция >> Вентиляционное оборудование >> Увлажнители >> Breezart]',
             '[Кондиционеры >> Запчасти и аксессуары >> Фильтры]'
         ]
-        const today = new Date()
         const itemsData = []
         console.log('scrape working!');
 
@@ -200,11 +203,24 @@ const breezartObject = {
 }
 
 
-async function returnData(){
-    const data = await breezartObject.scrape()
-    console.log(data);
+
+async function createCsv(data){
+    await stringify(data, {header: true, delimiter: ';'},  (err, output) => {
+        fs.writeFile('data.csv', output,  err => {
+            if(err) console.log(err)
+            console.log('удачно запихали всё в csv')
+        })
+    })
 }
-returnData()
+
+async function go(){
+    const data = await breezartObject.scrape()
+    await createCsv(data)
+}
+
+go()
+
+
 
 module.exports = {
     breezartObject
