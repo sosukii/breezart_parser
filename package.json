@@ -23,6 +23,7 @@
   },
   "homepage": "https://github.com/sosukii/breezart_parser#readme",
   "dependencies": {
+    "csv-stringify": "^6.2.0",
     "puppeteer": "^15.4.0"
   }
 }

@@ -2,6 +2,9 @@ const puppeteer = require('puppeteer')
 const fs = require('fs');
 const {stringify} = require ('csv-stringify')
 
+
+const dataForUpdate = []
+
 const breezartObject = {
     link: 'http://www.breezart.ru/',
     async scrape(){
@@ -128,6 +131,8 @@ const breezartObject = {
             
             const briefdescription = arrayDescription[itemPageIndex]   
 
+            dataForUpdate.push({name, sku})
+            console.log('дата для апдейта: ', dataForUpdate);
             return {photos, name, price, enabled, amount, currency, producer, properties, description, category, sku, briefdescription}
         }
         async function returnItemsDataPerOnePage(isFirstPage, currentPage, linkOnNextPage, categoryIndex){
@@ -163,14 +168,15 @@ const breezartObject = {
             return paginationLinks.map(link => `${linkToCurrentPage}${link}`)
         }
         const arrayOfCategories = [
-            '[Кондиционеры >> Вентиляция >> Вентиляционные установки >> Приточные установки >> Breezart]',
-            '[Кондиционеры >> Вентиляция >> Вентиляционные установки >> Приточно-вытяжные установки >> Breezart]',
-            '[Кондиционеры >> Вентиляция >> Вентиляционные установки >> Вытяжные установки >> Breezart]',
-            '[Кондиционеры >> Вентиляция >> Вентиляционные установки >> Установки для бассейна >> Breezart]',
-            '[Кондиционеры >> Вентиляция >> Вентиляционное оборудование >> Увлажнители >> Breezart]',
-            '[Кондиционеры >> Запчасти и аксессуары >> Фильтры]'
+            '[Главная >> Вентиляция >> Вентиляционные установки >> Приточные установки >> Breezart]',
+            '[Главная >> Вентиляция >> Вентиляционные установки >> Приточно-вытяжные установки >> Breezart]',
+            '[Главная >> Вентиляция >> Вентиляционные установки >> Вытяжные установки >> Breezart]',
+            '[Главная >> Вентиляция >> Вентиляционные установки >> Установки для бассейна >> Breezart]',
+            '[Главная >> Вентиляция >> Вентиляционное оборудование >> Увлажнители >> Breezart]',
+            '[Главная >> Вентиляция >> Запчасти и аксессуары >> Фильтры]'
         ]
         const itemsData = []
+        
         console.log('scrape working!');
 
         const browser = await puppeteer.launch({headless: false}); //{headless: false} для отображения окна
@@ -204,18 +210,25 @@ const breezartObject = {
 
 
 
-async function createCsv(data){
+
+async function createCsv(data, dataForUpdate){
     await stringify(data, {header: true, delimiter: ';'},  (err, output) => {
         fs.writeFile('data.csv', output,  err => {
             if(err) console.log(err)
             console.log('удачно запихали всё в csv')
         })
     })
+    let content = JSON.stringify(dataForUpdate)
+    fs.writeFile('./listOfNameAndSKU.json', content, 'utf-8', err => {
+        if(err) console.log(err)
+        console.log('создали джсон');
+    })
 }
 
 async function go(){
     const data = await breezartObject.scrape()
-    await createCsv(data)
+    await createCsv(data, dataForUpdate)
+    console.log('dataForUpdate: ', dataForUpdate);
 }
 
 go()
