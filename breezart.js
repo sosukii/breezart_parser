@@ -127,7 +127,9 @@ const breezartObject = {
             const category = arrayOfCategories[categoryIndex]
 
             const today = new Date()
-            const sku = `${today.getDate()}${today.getMonth()}${today.getFullYear().toString().slice(2)}${today.getMilliseconds()}`
+            const randomNumber = Math.floor(Math.random() * 100)
+            const randomNumber2 = Math.floor(Math.random() * 100)
+            const sku = `${today.getDate()}${today.getMonth()}${today.getFullYear().toString().slice(2)}${randomNumber}${today.getMilliseconds()}${randomNumber2}`
             
             const briefdescription = arrayDescription[itemPageIndex]   
 
